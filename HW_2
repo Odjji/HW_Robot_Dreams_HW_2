@@ -1,0 +1,187 @@
+#include <iostream>
+#include <cmath>
+#include <iomanip>
+
+// Глобальні константи
+const double G_ACCEL = 9.81;
+const int MAX_TICKS = 60;
+const double DROP_TOLERANCE_M = 2.0;
+
+//Функції для обчислень
+
+// Обчислення координат точок з урахуванням зносу
+double culc_point_x(double targ_x, double w_x, double t){
+    
+    double point_x = targ_x - (w_x * t);
+    
+    return point_x;
+    
+}
+
+double culc_point_y(double targ_y, double w_y, double t){
+    
+    double point_y = targ_y - (w_y * t);
+    
+    return point_y;
+    
+}
+
+// Обчислення курсу на точку скиду
+double culc_rate_target(double targ_x, double targ_y){
+    
+    double kut_radians = std::atan2(targ_x, targ_y);
+    
+    double targ_to_rate = kut_radians * (180.0 / M_PI);
+    
+    return targ_to_rate;
+} 
+
+// Обчислення часу падіння
+double culc_fall_time(double altitude){
+    
+    double fall_time = std::sqrt((2.0 * altitude) / G_ACCEL);
+    
+    return fall_time;
+}
+
+// Обчислення швидкості зустрічі з землею
+double culc_speed_m(double f_time){
+    
+    double meet_speed = f_time * G_ACCEL;
+    
+    
+    return meet_speed;
+}
+
+// Покроковий рух дрона до точки скиду
+double step_forward(double& b_x, double& b_y, double r_x, double r_y, double s_m ){
+    
+    double d_x = r_x - b_x;
+    double d_y = r_y - b_y;
+    
+    double dist_targ = std::sqrt(d_x * d_x + d_y * d_y);
+    
+    if (dist_targ < 0.0001){
+        
+        return 0.0;
+    }
+    
+    if (dist_targ <= s_m){
+        
+        b_x = r_x;
+        b_y = r_y;
+        
+        return 0.0;
+        
+    }
+    
+    double ratio = s_m / dist_targ;
+    
+    b_x += (d_x * ratio);
+    b_y += (d_y * ratio); 
+    
+    
+    return dist_targ - s_m;
+}
+
+int main(int argc, char* argv[]) {
+    // ===== ВХІДНІ ДАНІ =====
+    // Програма отримує 6 чисел як АРГУМЕНТИ КОМАНДНОГО РЯДКА у фіксованому порядку:
+    //   1: altitude_m   2: target_x   3: target_y   4: wind_x   5: wind_y   6: step_m
+    // Запуск:  ./program 120 35 60 5 0 10
+    //
+    // ЗАВДАННЯ: аргументи приходять у масиві argv (масив із N = argc рядків, де
+    // argv[0] — імʼя програми).
+
+    // Два рядки (void) нижче приберіть, щойно почнете читати argc/argv — вони лише
+    // прибирають попередження -Wall -Wextra про невикористані параметри.
+
+   
+   // 1. Вхідна валідація аргументів 
+    if (argc < 7){
+        
+        std::cerr << "Помилка! Недостятньо аргументів" << "\n";
+        std::cerr << "Використання: " << argv[0] << " <altitude_m> <target_x> <target_y> <wind_x> <wind_y> <step_m>\n";
+        
+        return 1;
+    }
+    
+    // Зчитування аргументів командного рядка
+    double altitude_m = std::stod(argv[1]);
+    double target_x   = std::stod(argv[2]);
+    double target_y   = std::stod(argv[3]);
+    double wind_x     = std::stod(argv[4]);
+    double wind_y     = std::stod(argv[5]);
+    double step_m     = std::stod(argv[6]);
+    
+    
+     // Робочі змінні
+    int ticks = 0;
+    double drone_x = 0.0;
+    double drone_y = 0.0;
+    
+    // 2. Розрахунок стартових фізичних параметрів
+    double release_x;
+    double release_y;
+    double rate_to_target;
+    double time_fall;
+    double speed_metteng;
+    double dist_to_target;
+    bool status_drone;
+    
+    
+
+    // ===== ВАШ РОЗВʼЯЗОК =====
+    // Винесіть повторювані обчислення у ФУНКЦІЇ (заняття 3): час падіння, курс,
+    // відстань між двома точками, один крок дрона до точки скиду.
+    // Вихід дрона в точку скиду організуйте ЦИКЛОМ, оновлюючи положення дрона
+    // у функції ЗА ПОСИЛАННЯМ (заняття 4). Обмежте цикл MAX_TICKS.
+    
+    //std::cout << "Назва програми з argv[0] = " << argv[0] << "\n";
+    
+
+    time_fall = culc_fall_time(altitude_m);
+    
+    release_x = culc_point_x(target_x, wind_x, time_fall);
+    
+    release_y = culc_point_y(target_y, wind_y, time_fall);
+    
+    rate_to_target = culc_rate_target(release_x, release_y);
+    
+    speed_metteng = culc_speed_m(time_fall);
+    
+            while(ticks < MAX_TICKS){
+        
+                dist_to_target = step_forward(drone_x, drone_y, release_x, release_y, step_m);
+        
+                ticks++;
+            
+                 if (dist_to_target < 0.0001) {
+                    break; 
+                 }
+            
+            } 
+    
+    // Розрахунок статусу (ATTACK або MOVE)
+    if(dist_to_target <DROP_TOLERANCE_M){
+        status_drone = true;
+    }
+    else{
+        status_drone = false;
+    }
+    
+    
+    std::cout << std::fixed << std::setprecision(2);
+    
+
+    // ===== ВИВІД (підписи й порядок рядків НЕ МІНЯЙТЕ) =====
+    // Підставте свої обчислені величини замість 0 і додайте двозначну точність.
+    std::cout << "Точка скиду X: "                 << release_x << " м\n";
+    std::cout << "Точка скиду Y: "                 << release_y << " м\n";
+    std::cout << "Курс на точку скиду: "           << rate_to_target << " град\n";
+    std::cout << "Час падіння: "                   << time_fall << " с\n";
+    std::cout << "Швидкість зустрічі: "            << speed_metteng << " м/с\n";
+    std::cout << "Кроків корекції: "               << ticks << "\n";
+    std::cout << "Статус (1 = ATTACK, 0 = MOVE): " << status_drone << "\n";
+    return 0;
+}
